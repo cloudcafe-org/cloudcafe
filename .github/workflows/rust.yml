@@ -53,7 +53,7 @@ jobs:
         cargo build --release --package cloudcafe-client --all-features
         Rename-Item ./target/release/cloudcafe-client.exe cloudcafe-client-windows.exe
         New-Item ./target/release/client -ItemType Directory
-        Copy-Item ./target/release/cloudcafe-client.exe ./target/release/client
+        Copy-Item ./target/release/cloudcafe-client-windows.exe ./target/release/client
     - name: Test
       run: |
         cargo test --release --package cloudcafe-client --all-features
