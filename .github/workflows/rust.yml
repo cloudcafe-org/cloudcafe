@@ -58,14 +58,21 @@ jobs:
       run: |
         cargo test --release --package cloudcafe-client --all-features
     - name: Upload client to S3 bucket
-      uses: shallwefootball/upload-s3-action@v1.3.0
+      uses: prewk/s3-cp-action@v2
       with:
+        aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        source: './target/release/client/cloudcafe-client-windows.exe'
+        dest: 's3://${{ secrets.AWS_BUCKET_NAME }}/cloudcafe-client-windows.exe'
+        #flags: --recursive
+      #uses: shallwefootball/upload-s3-action@v1.3.0
+      #with:
         #args: --acl public-read
         #FILE: ./target/release/cloudcafe-client-windows
         #region: 'eu-central-1'
         #AWS_S3_BUCKET: ${{ secrets.AWS_BUCKET_NAME }}
-        aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws_bucket: ${{ secrets.AWS_BUCKET_NAME }}
-        source_dir: ./target/release/
-        destination_dir: /
+      #  aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #  aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #  aws_bucket: ${{ secrets.AWS_BUCKET_NAME }}
+      #  source_dir: ./target/release/client
+      #  destination_dir: /
