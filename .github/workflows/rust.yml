@@ -51,7 +51,7 @@ jobs:
     - name: Build
       run: |
         cargo build --release --package cloudcafe-client --all-features
-        rename ./target/release/cloudcafe-client ./target/release/cloudcafe-client-windows
+        Rename-Item ./target/release/cloudcafe-client.exe cloudcafe-client-windows.exe
     - name: Test
       run: |
         cargo test --release --package cloudcafe-client --all-features
