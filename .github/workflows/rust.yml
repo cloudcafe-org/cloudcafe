@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -38,4 +38,30 @@ jobs:
         AWS_S3_BUCKET: ${{ secrets.AWS_BUCKET_NAME }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
+  build-windows: 
+   runs-on: windows-latest
+   steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2.2.0
+    - uses: actions-rs/toolchain@v1
+      with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+    - name: Build
+      run: |
+        cargo build --release --package cloudcafe-client --all-features
+        rename ./target/release/cloudcafe-client ./target/release/cloudcafe-client-windows
+    - name: Test
+      run: |
+        cargo test --release --package cloudcafe-client --all-features
+    - name: Upload client to S3 bucket
+      uses: tpaschalis/s3-sync-action@master
+      with:
+        args: --acl public-read
+      env:
+        FILE: ./target/release/cloudcafe-client-windows
+        AWS_REGION: 'eu-central-1'
+        AWS_S3_BUCKET: ${{ secrets.AWS_BUCKET_NAME }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
