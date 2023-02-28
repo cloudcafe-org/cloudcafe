@@ -56,12 +56,14 @@ jobs:
       run: |
         cargo test --release --package cloudcafe-client --all-features
     - name: Upload client to S3 bucket
-      uses: tpaschalis/s3-sync-action@master
+      uses: s3-actions/s3cmd@v1.4.0
       with:
-        args: --acl public-read
-      env:
-        FILE: ./target/release/cloudcafe-client-windows
-        AWS_REGION: 'eu-central-1'
-        AWS_S3_BUCKET: ${{ secrets.AWS_BUCKET_NAME }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        #args: --acl public-read
+        #FILE: ./target/release/cloudcafe-client-windows
+        region: 'eu-central-1'
+        #AWS_S3_BUCKET: ${{ secrets.AWS_BUCKET_NAME }}
+        access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    - name: Do the upload
+      run: |
+       s3cmd put ./target/release/cloudcafe-client-windows --acl-public-read s3://${{ secrets.AWS_BUCKET_NAME }}/cloudcafe-client-windows
