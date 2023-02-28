@@ -61,16 +61,17 @@ jobs:
 #       run: |
 #         cargo test --release --package cloudcafe-client --all-features
     - name: Upload client to S3 bucket
-      uses: mostlytyped/s3-put-action@v1.0.0
+      uses: Noelware/s3-action@v2
       with:
-        args: --acl-public
-      env:
-        AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        LOCAL_FILE: './test.txt'
+        directories: './test.txt'
+        bucket: ${{ secrets.AWS_BUCKET }}
+        path-format: '/$(file)'
+        endpoint: s3.amazonaws.com
+        access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        #LOCAL_FILE: './test.txt'
         #LOCAL_FILE: './target/release/client/cloudcafe-client-windows.exe'
-        REMOTE_FILE: 'test.txt'
+        #REMOTE_FILE: 'test.txt'
         #REMOTE_FILE: 'cloudcafe-client-windows.exe'
         #flags: --recursive
       #uses: shallwefootball/upload-s3-action@v1.3.0
