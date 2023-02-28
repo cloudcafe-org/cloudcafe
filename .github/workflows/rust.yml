@@ -22,26 +22,16 @@ jobs:
           override: true
     - name: Build
       run: |
-        cargo build --all --all-features
+        cargo build --release --all --all-features
     - name: Test
       run: |
-        cargo test --all --all-features
-#     - name: Build
-#       uses: actions-rs/cargo@v1
-#       with:
-#         command: build --all
-#         args: --all-features
-#     - name: Test
-#       uses: actions-rs/cargo@v1
-#       with:
-#         command: test --all
-#         args: --all-features
+        cargo test --release --all --all-features
     - name: Upload binary to S3 bucket
       uses: tpaschalis/s3-sync-action@master
       with:
         args: --acl public-read
       env:
-        FILE: ./target/cloudcafe-client
+        FILE: ./target/release/cloudcafe-client
         AWS_REGION: 'eu-central-1'
         AWS_S3_BUCKET: ${{ secrets.AWS_BUCKET_NAME }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
