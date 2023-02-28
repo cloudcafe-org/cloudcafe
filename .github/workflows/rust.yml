@@ -42,28 +42,36 @@ jobs:
    runs-on: windows-latest
    steps:
     - uses: actions/checkout@v3
-    - uses: Swatinem/rust-cache@v2.2.0
-    - uses: actions-rs/toolchain@v1
-      with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-    - name: Build
+    - name: TEST2
       run: |
-        cargo build --release --package cloudcafe-client --all-features
-        Rename-Item ./target/release/cloudcafe-client.exe cloudcafe-client-windows.exe
-        New-Item ./target/release/client -ItemType Directory
-        Copy-Item ./target/release/cloudcafe-client-windows.exe ./target/release/client
-    - name: Test
-      run: |
-        cargo test --release --package cloudcafe-client --all-features
+        New-Item test.txt
+#     - uses: Swatinem/rust-cache@v2.2.0
+#     - uses: actions-rs/toolchain@v1
+#       with:
+#           profile: minimal
+#           toolchain: nightly
+#           override: true
+#     - name: Build
+#       run: |
+#         cargo build --release --package cloudcafe-client --all-features
+#         Rename-Item ./target/release/cloudcafe-client.exe cloudcafe-client-windows.exe
+#         New-Item ./target/release/client -ItemType Directory
+#         Copy-Item ./target/release/cloudcafe-client-windows.exe ./target/release/client
+#     - name: Test
+#       run: |
+#         cargo test --release --package cloudcafe-client --all-features
     - name: Upload client to S3 bucket
-      uses: prewk/s3-cp-action@v2
+      uses: mostlytyped/s3-put-action@v1.0.0
       with:
-        aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        source: './target/release/client/cloudcafe-client-windows.exe'
-        dest: 's3://${{ secrets.AWS_BUCKET_NAME }}/cloudcafe-client-windows.exe'
+        args: --acl-public
+      env:
+        AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        LOCAL_FILE: './test.txt'
+        #LOCAL_FILE: './target/release/client/cloudcafe-client-windows.exe'
+        REMOTE_FILE: 'test.txt'
+        #REMOTE_FILE: 'cloudcafe-client-windows.exe'
         #flags: --recursive
       #uses: shallwefootball/upload-s3-action@v1.3.0
       #with:
