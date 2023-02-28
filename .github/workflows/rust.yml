@@ -15,16 +15,27 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: Swatinem/rust-cache@v2.2.0
+    - uses: actions-rs/toolchain@v1
+      with:
+          profile: minimal
+          toolchain: nightly
+          override: true
     - name: Build
-      uses: actions-rs/cargo@v1
-      with:
-        command: build --all
-        args: --all-features
+      run: |
+        cargo build --all --all-features
     - name: Test
-      uses: actions-rs/cargo@v1
-      with:
-        command: test --all
-        args: --all-features
+      run: |
+        cargo test --all --all-features
+#     - name: Build
+#       uses: actions-rs/cargo@v1
+#       with:
+#         command: build --all
+#         args: --all-features
+#     - name: Test
+#       uses: actions-rs/cargo@v1
+#       with:
+#         command: test --all
+#         args: --all-features
     - name: Upload binary to S3 bucket
       uses: tpaschalis/s3-sync-action@master
       with:
