@@ -15,15 +15,30 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: Swatinem/rust-cache@v2.2.0
-    - name: Build
+    - name: Build Client
       uses: actions-rs/cargo@v1
       with:
-        command: build
+        command: build -p cloudcafe-client
         args: --all-features
-    - name: Test
+    - name: Build Client
+      uses: actions-rs/cargo@v1
+      with:
+        command: build -p cloudcafe-server
+        args: --all-features
+    - name: Test Common
       uses: actions-rs/cargo@v1
       with:
         command: test
+        args: --all-features
+    - name: Test Client
+      uses: actions-rs/cargo@v1
+      with:
+        command: test -p cloudcafe-client
+        args: --all-features
+    - name: Test Server
+      uses: actions-rs/cargo@v1
+      with:
+        command: test -p cloudcafe-server
         args: --all-features
     - name: Upload binary to S3 bucket
       uses: tpaschalis/s3-sync-action@master
