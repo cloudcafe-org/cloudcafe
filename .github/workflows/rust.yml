@@ -44,6 +44,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: Swatinem/rust-cache@v2.2.0
     - uses: actions-rs/toolchain@v1
+    - uses: shallwefootball/upload-s3-action@v1.3.0
       with:
           profile: minimal
           toolchain: nightly
@@ -58,14 +59,7 @@ jobs:
       run: |
         cargo test --release --package cloudcafe-client --all-features
     - name: Upload client to S3 bucket
-    - uses: shallwefootball/upload-s3-action@v1.3.0
       with:
-        #args: --acl public-read
-        #FILE: ./target/release/cloudcafe-client-windows
-        #region: 'eu-central-1'
-        #AWS_S3_BUCKET: ${{ secrets.AWS_BUCKET_NAME }}
-        
-        
         aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws_bucket: ${{ secrets.AWS_BUCKET_NAME }}
