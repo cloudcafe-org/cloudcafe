@@ -1,10 +1,10 @@
 use std::thread;
 use std::time::Duration;
+use stereokit::Settings;
 
 fn main() {
-    println!("Hello, world!");
-    for i in 0..100 {
-        println!("hi mom!");
-        thread::sleep(Duration::from_secs(1));
-    }
+    let sk = Settings::default().disable_unfocused_sleep(true).init().expect("Couldn't init stereokit");
+    sk.run(|sk| {
+
+    }, |_| {});
 }
