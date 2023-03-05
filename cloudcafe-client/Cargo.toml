@@ -6,4 +6,21 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-stereokit = { git = "https://github.com/MalekiRe/stereokit-rs"}
+#stereokit = { git = "https://github.com/MalekiRe/stereokit-rs"}
+stereokit = { path = "../../stereokit-rs"}
+glam = { verion = "0.22.1", features = ["mint"]}
+mint = "0.5.9"
+ustr = "0.9.0"
+#winapi = {version = "0.3.9", features = ["winuser", "ntdef", "d3d11"]}
+widestring = "1.0.2"
+#stereokit-sys = "2.4.1"
+tracing-subscriber = "0.3.16"
+tracing = "0.1.37"
+windows = { version = "0.30.0", features = ["Win32_System_WinRT_Graphics_Capture", "Win32_Graphics_Direct3D11", "Graphics_Capture", "Win32_UI_WindowsAndMessaging", "Graphics_DirectX_Direct3D11", "Win32_Foundation", "Media_Capture", "Foundation", "Win32_Graphics_Gdi"]}
+#tokio = {version = "1.25.0", features = ["full"]}
+win-screenshot = "3.0.1"
+image = "0.24.5"
+tokio = {version = "1.25.0", features = ["rt", "rt-multi-thread"]}
+dxcapture = { git = "https://github.com/cloudcafe-org/dxcapture"}
+crossbeam = "0.8.2"
+leftwm-layouts = "0.7.0"
