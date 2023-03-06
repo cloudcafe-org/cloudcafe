@@ -2,10 +2,8 @@ extern crate core;
 
 mod popup_menu;
 mod world;
-//mod windows;
-mod windows2;
-
 use std::ffi::c_void;
+use std::ptr::null;
 use std::thread;
 use std::time::Duration;
 use dxcapture::Device;
@@ -27,12 +25,9 @@ use stereokit::ui::{MoveType, window, WindowType};
 //use stereokit_sys::{color32, vec2};
 use tokio::pin;
 use ustr::ustr;
-use win_screenshot::capture::capture_display;
-use win_screenshot::prelude::window_list;
-use win_screenshot::utils::find_window;
-use windows::Graphics::DirectX::DirectXPixelFormat;
-use windows::Win32::Graphics;
-use windows::Win32::Graphics::Direct3D11::{D3D11_CPU_ACCESS_READ, D3D11_TEXTURE2D_DESC, D3D11_USAGE_DEFAULT, D3D11_USAGE_DYNAMIC, D3D11_USAGE_IMMUTABLE, D3D11_USAGE_STAGING, ID3D11Texture2D};
+use windows::Win32::Foundation::{HWND, POINT};
+use windows::Win32::UI::Input::KeyboardAndMouse::{MOUSE_EVENT_FLAGS, TME_HOVER, TME_LEAVE, TRACKMOUSEEVENT};
+use windows::Win32::UI::WindowsAndMessaging::{DispatchMessageW, GetCursorPos, GetMessageW, HWND_TOPMOST, MoveWindow, MSG, PeekMessageW, PM_REMOVE, SetCursorPos, TranslateMessage, WM_INPUT, WM_MOUSEFIRST};
 use crate::world::WorldModel;
 
 fn main() {
@@ -65,6 +60,7 @@ fn main() {
 fn second_main() {
     let device = dxcapture::Device::default();
     let mut devices = vec![];
+    let mut hwnd = dxcapture::enumerate_windows().get(0).unwrap().handle;
     for window in dxcapture::enumerate_windows() {
         if let Ok(device) = Device::new_from_window(window.title) {
             devices.push(device);
@@ -96,25 +92,91 @@ fn second_main() {
     let defaults = Layouts::default();
     let mut layout = defaults.layouts.get(3).unwrap();
     let rects = leftwm_layouts::apply(layout, 5, &Rect::new(0, 0, 300, 300));
+
+    let mouse_model = Model::from_file(&sk, "assets/mouse.glb", None).unwrap();
+
+    let hwnd = unsafe {
+         HWND(hwnd as isize)
+    };
+
     //layout.increase_main_window_count();
+    let mut amount = 0;
+    let mut last_pos = POINT {
+        x: 0,
+        y: 0,
+    };
+    let mut fixed_pos = POINT {
+        x: 0,
+        y: 0,
+    };
+    unsafe {
+        GetCursorPos(&mut last_pos);
+    }
+    let mut pos_difference = (0, 0);
+    let mut mouse_pos = Vec3::new(0.0, 0.0, 0.0);
+    let mut is_captured = true;
+    let t = Texture::from_cubemap_equirectangular(&sk, "assets/skytex2.hdr", false, 0).unwrap();
+    sk.set_skytex(&t.0);
+    sk.set_skylight(&t.1);
     sk.run(|sk| {
         unsafe {
                 for shared_tex in capture.rx.try_iter() {
-                    let mut desc = D3D11_TEXTURE2D_DESC::default();
-                    shared_tex.GetDesc(&mut desc);
-                    texture.set_surface(std::mem::transmute(shared_tex), TextureType::ImageNoMips, desc.Format as i64, 0, 0, 1, true);
+                    //shared_tex.GetDesc(&mut desc);
+                    texture.set_surface(std::mem::transmute(shared_tex), TextureType::ImageNoMips, 87, 0, 0, 1, true);
                 }
             model.draw(sk, Mat4::from_scale_rotation_translation(Vec3::new(1.0, 1.0, 1.0), Quat::IDENTITY, Vec3::default()).into(), WHITE, RenderLayer::Layer1)
         }
-        /*
-        for i in &rects {
-            let matrix = Mat4::from_scale_rotation_translation(
-                Vec3::new(i.w as f32 / 100.0, i.h as f32 / 100.0, 1.0),
-                Quat::IDENTITY,
-                Vec3::new(i.x as f32 / 100.0, i.y as f32 / 100.0, 0.0)).into();
-            model.draw(sk, matrix, WHITE, RenderLayer::Layer1);
+        unsafe {
+            MoveWindow(hwnd, 1, 1, 1920, 1080, true);
+            let mut pos: POINT = POINT::default();
+            GetCursorPos(&mut pos);
+            pos_difference = (-pos.x + last_pos.x, -pos.y + last_pos.y);
+            last_pos = pos;
+            println!("pos: {:?}", pos);
+            println!("pos_difference: {:?}", pos_difference);
         }
-        */
+        if !is_captured {
+            mouse_pos.x += sk.input_mouse().scroll_change / 50.0;
+            mouse_pos.z -= pos_difference.0 as f32 / 200.0;
+            mouse_pos.y += pos_difference.1 as f32 / 200.0;
+            let mouse_rotation = Quat::IDENTITY;
+            let mouse_matrix = Mat4::from_scale_rotation_translation(Vec3::new(0.1, 0.1, 0.1), mouse_rotation, mouse_pos).into();
+            mouse_model.draw(sk, mouse_matrix, WHITE, RenderLayer::Layer1);
+            if mouse_pos.z < 0.5 && mouse_pos.z > -0.5 {
+                if mouse_pos.y < 0.5 && mouse_pos.y > -0.5 {
+                    is_captured = true;
+                    //unsafe { SetCursorPos(((mouse_pos.x + 0.5) * 1920.0) as i32, ((mouse_pos.y + 0.5) * 1920.0) as i32); }
+                    mouse_pos.z = 0.0;
+                    mouse_pos.y = 0.0;
+                } else {
+                    last_pos = fixed_pos;
+                    unsafe { SetCursorPos(fixed_pos.x, fixed_pos.y); }
+                }
+            } else {
+                last_pos = fixed_pos;
+                unsafe { SetCursorPos(fixed_pos.x, fixed_pos.y); }
+            }
+        }
+        if is_captured {
+            if last_pos.x <= 4 {
+                mouse_pos.z = -0.51; is_captured = false;
+                fixed_pos = last_pos;
+                fixed_pos.x = 4;
+            }
+            if last_pos.x >= 1921 {
+                mouse_pos.z = 0.51; is_captured = false;
+                fixed_pos = last_pos;
+            }
+            if last_pos.y <= 4 {
+                mouse_pos.y = 0.51; is_captured = false;
+                fixed_pos = last_pos;
+                fixed_pos.y = 4;
+            }
+            if last_pos.y >= 1081 {
+                mouse_pos.y = -0.51; is_captured = false;
+                fixed_pos = last_pos;
+            }
+        }
     }, |_| {});
 
     // let mut buf2: Vec<color32> = vec![];
