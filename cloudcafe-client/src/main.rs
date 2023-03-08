@@ -2,6 +2,9 @@ extern crate core;
 
 mod popup_menu;
 mod world;
+mod window_management;
+mod window_management_2;
+mod simple_wm;
 
 use std::f32::consts::PI;
 use std::ffi::c_void;
@@ -35,6 +38,7 @@ use crate::world::WorldModel;
 use color_eyre::Result;
 use stereokit::pose::Pose;
 use stereokit_sys::tex_set_surface;
+
 
 pub struct Window {
     hwnd: HWND,
@@ -108,6 +112,9 @@ impl Window {
 fn main() {
     //windows2::run();
     //second_main();
+    //window_management::main();
+    simple_wm::main();
+    return;
     let sk = Settings::default().log_filter(LogFilter::Diagnostic).disable_unfocused_sleep(true).init().expect("Couldn't init stereokit");
 
 
