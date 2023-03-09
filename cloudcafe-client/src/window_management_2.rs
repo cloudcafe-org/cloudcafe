@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::mem;
-use dxcapture::{Capture, Device};
+use dxcapture::{Capture, Device, enumerate_windows};
 use dxcapture::window_finder::WindowInfo;
 use glam::{Mat4, Quat, Vec2, Vec3};
 use mint::Vector2;
@@ -9,7 +9,7 @@ use stereokit::lifecycle::{StereoKitContext, StereoKitDraw};
 use stereokit::material::{DEFAULT_ID_MATERIAL_UNLIT, Material};
 use stereokit::mesh::Mesh;
 use stereokit::texture::{Texture, TextureFormat, TextureType};
-use windows::Win32::Foundation::{HWND, POINT, RECT};
+use windows::Win32::Foundation::{BOOL, HWND, POINT, RECT};
 
 pub trait WindowManager<MouseT: Mouse, WindowT: Window, WindowId: Hash + Eq + Clone> {
     fn mouse_ref(&self) -> &MouseT;
@@ -46,6 +46,9 @@ pub trait WindowManager<MouseT: Mouse, WindowT: Window, WindowId: Hash + Eq + Cl
             let mut optional_internal_pos: Option<InternalPos> = None;
             let mut optional_window_id: Option<WindowId> = None;
             for (window_id, window) in self.windows_ref() {
+                if invalid_windows.contains(window_id) {
+                    continue;
+                }
                 if let Some(internal_pos) = window.map_virtual_to_internal_pos(virtual_mouse_pos) {
                     optional_internal_pos.replace(internal_pos);
                     optional_window_id.replace(window_id.clone());
@@ -56,9 +59,13 @@ pub trait WindowManager<MouseT: Mouse, WindowT: Window, WindowId: Hash + Eq + Cl
                 if let Some(window_id) = optional_window_id {
                     self.captured().replace(window_id.clone());
                     self.mouse_mut().set_internal_position(internal_pos);
+                    self.windows_mut().get_mut(&window_id).unwrap().focus();
+                } else {
+                    self.mouse_mut().draw(sk);
                 }
+            } else {
+                self.mouse_mut().draw(sk);
             }
-            self.mouse_mut().draw(sk);
         }
         for invalid_window_id in invalid_windows {
             self.windows_mut().remove(&invalid_window_id);
@@ -105,8 +112,6 @@ pub trait Window {
     fn map_relative_to_virtual_pos(&self, relative_pos: RelativePos) -> Vec3;
 
 
-
-
     fn is_valid(&self) -> bool;
 
     fn focus(&mut self);
@@ -120,7 +125,8 @@ use stereokit::pose::Pose;
 use stereokit::render::{RenderLayer, StereoKitRender};
 use stereokit::ui::{MoveType, WindowType};
 use windows::Win32::Graphics::Gdi::ScreenToClient;
-use windows::Win32::UI::WindowsAndMessaging::{GetClientRect, GetParent, GetWindowRect, GetWindowTextA, GetWindowTextW, MoveWindow};
+use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
+use windows::Win32::UI::WindowsAndMessaging::{GetClientRect, GetForegroundWindow, GetParent, GetWindowRect, GetWindowTextA, GetWindowTextW, GetWindowThreadProcessId, HWND_TOP, MoveWindow, SetForegroundWindow, SwitchToThisWindow};
 
 pub struct WindowsWindow {
     pub(crate) hwnd: HWND,
@@ -159,33 +165,65 @@ impl WindowsWindow {
             sk.add_mesh(&self.win_mesh, &self.win_material, Mat4::from_scale_rotation_translation(Vec3::new(size.x, size.y, 1.0), Quat::IDENTITY, Vec3::new(0.0, -size.y/2.0, -0.001)).into(), WHITE, RenderLayer::LayerAll)
         });
     }
-    pub fn size(&self) -> Vector2<u32> {
-        let mut rect = RECT::default();
-        unsafe {
-            GetClientRect(self.hwnd, &mut rect);
-        }
-        let mut w = rect.right - rect.left;
-        let mut h = rect.bottom - rect.top;
-        Vector2::from([w as u32, h as u32])
-    }
-    pub fn set_size(&mut self, size: Vector2<u32>) {
-        let position = self.position();
-        unsafe {
-            MoveWindow(self.hwnd, position.x as i32, position.y as i32, size.x as i32, size.y as i32, true)
-        };
-    }
-    pub fn position(&self) -> Vector2<u32> {
+    pub fn size(&self) -> Option<Vector2<u32>> {
         let mut rect = RECT::default();
         unsafe {
             GetWindowRect(self.hwnd, &mut rect);
         }
-        Vector2::from([rect.left as u32, rect.top as u32])
+        let mut w = rect.right - rect.left;
+        let mut h = rect.bottom - rect.top;
+        if w < 0 || h < 0 {
+            return None;
+        }
+        Some(Vector2::from([w as u32, h as u32]))
     }
-    pub fn set_position(&mut self, position: Vector2<u32>) {
-        let size = self.size();
+    pub fn set_size(&mut self, size: Vector2<u32>) -> Option<()> {
+        if let Some(position) = self.position() {
+            unsafe {
+                MoveWindow(self.hwnd, position.x as i32, position.y as i32, size.x as i32, size.y as i32, true)
+            };
+            return Some(())
+        }
+        None
+    }
+    pub fn position(&self) -> Option<Vector2<u32>> {
+        let mut rect = RECT::default();
         unsafe {
-            MoveWindow(self.hwnd, position.x as i32, position.y as i32, size.x as i32, size.y as i32, true)
-        };
+            GetWindowRect(self.hwnd, &mut rect);
+        }
+        if rect.left < 0 && rect.left > -10 {
+            rect.left = 0;
+        }
+        if rect.left < 0 || rect.top < 0 {
+            return None;
+        }
+        Some(Vector2::from([rect.left as u32, rect.top as u32]))
+    }
+    pub fn set_position(&mut self, position: Vector2<u32>) -> Option<()> {
+        if let Some(size) = self.size() {
+            unsafe {
+                MoveWindow(self.hwnd, position.x as i32, position.y as i32, size.x as i32, size.y as i32, true)
+            };
+            return Some(())
+        }
+        return None;
+    }
+    pub fn bring_to_top(&mut self) {
+        let position = self.position().unwrap();
+        let size = self.size().unwrap();
+        unsafe {
+            for window in enumerate_windows() {
+                if window.class_name.contains("sk") {
+                    SetFocus(HWND({window.handle as isize}));
+                }
+            }
+            windows::Win32::UI::WindowsAndMessaging::BringWindowToTop(self.hwnd);
+            SetForegroundWindow(self.hwnd);
+            SetFocus(self.hwnd);
+            //SwitchToThisWindow(self.hwnd, BOOL::from(false));
+            windows::Win32::UI::WindowsAndMessaging::SetWindowPos(self.hwnd, HWND_TOP, position.x as i32, position.y as i32, size.x as i32, size.y as i32, Default::default());
+            windows::Win32::UI::WindowsAndMessaging::MoveWindow(self.hwnd, position.x as i32, position.y as i32, size.x as i32, size.y as i32, true);
+        }
     }
     pub fn title(&self) -> String {
         get_window_title(self.hwnd)
