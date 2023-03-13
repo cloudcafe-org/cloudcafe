@@ -17,11 +17,11 @@ use glam::{EulerRot, Mat4, Quat, Vec2, Vec3};
 use image::{ImageBuffer, Rgba};
 use leftwm_layouts::geometry::Rect;
 use leftwm_layouts::layouts::Layouts;
-use stereokit::color_named::WHITE;
+use stereokit::color_named::{BLUE, GREEN, RED, WHITE};
 use stereokit::input::{ButtonState, Key, StereoKitInput};
 use stereokit::lifecycle::{LogFilter, StereoKitContext, StereoKitDraw};
 use stereokit::material::{DEFAULT_ID_MATERIAL, DEFAULT_ID_MATERIAL_FONT, DEFAULT_ID_MATERIAL_PBR, DEFAULT_ID_MATERIAL_UI, DEFAULT_ID_MATERIAL_UNLIT, DEFAULT_ID_MATERIAL_UNLIT_CLIP, Material};
-use stereokit::mesh::Mesh;
+use stereokit::mesh::{Ind, Mesh, Vertex};
 use stereokit::model::Model;
 use stereokit::render::{RenderLayer, StereoKitRender};
 use stereokit::{color_named, Settings};
@@ -37,6 +37,7 @@ use windows::Win32::UI::WindowsAndMessaging::{DispatchMessageW, GetCursorPos, Ge
 use crate::world::WorldModel;
 use color_eyre::Result;
 use stereokit::pose::Pose;
+use stereokit::values::Color32;
 use stereokit_sys::tex_set_surface;
 
 
@@ -108,160 +109,16 @@ impl Window {
     }
 }
 
+pub static mut MESH: Option<Mesh> = None;
 
 fn main() {
-    //windows2::run();
-    //second_main();
-    //window_management::main();
+
+
     simple_wm::main();
-    return;
-    let sk = Settings::default().log_filter(LogFilter::Diagnostic).disable_unfocused_sleep(true).init().expect("Couldn't init stereokit");
 
-
-    let mut windows = Vec::new();
-    let mut polar_pos = Vec3::new(2.0, 0.1, PI / 2.0);
-    for info in enumerate_windows() {
-        windows.push(Window::from(&sk, info, polar_pos).unwrap());
-        polar_pos.y += windows.last().unwrap().polar_pos.y + 0.12;
-        if polar_pos.y >= PI {
-            polar_pos.y = 0.01;
-            polar_pos.z -= 0.6;
-            println!("A");
-        }
-    }
-
-    let mouse_model = Model::from_file(&sk, "assets/mouse.glb", None).unwrap();
-
-    let t = Texture::from_cubemap_equirectangular(&sk, "assets/skytex2.hdr", true, 0).unwrap();
-    sk.set_skytex(&t.0);
-    sk.set_skylight(&t.1);
-
-
-    let mut mouse_polar = Vec3::new(2.0, 0.1, 0.1);
-    unsafe {
-        SetCursorPos(600, 600);
-    }
-    let mut last_pos = POINT {
-        x: 0,
-        y: 0,
-    };
-    unsafe {
-        GetCursorPos(&mut last_pos);
-    }
-    let mut pos_difference = (0, 0);
-    let mut mouse_sensitivity = 200.0;
-
-    let mut clicked_window: Option<usize> = None;
-    let mut offset = Vec2::default();
-
-    let mut first_run = true;
-    sk.run(|sk| {
-        if first_run {
-            for window in &mut windows {
-                window.draw(&sk, Vec3::new(0.0, 0.0, 0.0));
-            }
-            first_run = false;
-        }
-        {
-            let mut current_pos = POINT::default();
-            unsafe {
-                GetCursorPos(&mut current_pos);
-            }
-            pos_difference.0 = (last_pos.x - current_pos.x);
-            pos_difference.1 = (last_pos.y - current_pos.y);
-            last_pos.x = current_pos.x;
-            last_pos.y = current_pos.y;
-        }
-
-        mouse_polar.z -= pos_difference.1 as f32 / mouse_sensitivity;
-        mouse_polar.y -= pos_difference.0 as f32 / mouse_sensitivity;
-        if mouse_polar.z < 0.0 {
-            mouse_polar.z = 0.001;
-        }
-        if mouse_polar.z > PI {
-            mouse_polar.z = PI - 0.001;
-        }
-        let position = spherical_to_cartesian(&mouse_polar);
-        let mut rotation = look_at_quat(position, Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
-        rotation *= Quat::from_euler(EulerRot::XYZ, 0.0, 90.0, 0.0);
-        let matrix = Mat4::from_scale_rotation_translation(Vec3::new(0.03, 0.03, 0.03), rotation, position);
-
-        mouse_model.draw(sk, matrix.into(), color_named::BURLY_WOOD, RenderLayer::Layer1);
-        if let Some(clicked_window) = clicked_window.as_ref() {
-            let window = windows.get_mut(*clicked_window).unwrap();
-            window.polar_pos.y = mouse_polar.y - offset.y;
-            window.polar_pos.z = mouse_polar.z - offset.x;
-        }
-        for (i, window) in windows.iter_mut().enumerate() {
-            if window.get_dimensions().0 == 0 || window.get_dimensions().1 == 0 {
-                continue;
-            }
-            if sk.input_key(Key::MouseLeft).contains(ButtonState::JustActive) {
-                if (mouse_polar.z - window.polar_pos.z).abs() < 0.1 {
-                    if (mouse_polar.y - window.polar_pos.y).abs().rem_euclid(2.0*PI) < 0.25 * (window.get_dimensions().0 as f32 / 1000.0) {
-                        if clicked_window.is_none() {
-                            offset.x = mouse_polar.z - window.polar_pos.z;
-                            offset.y = mouse_polar.y - window.polar_pos.y;
-                            clicked_window.replace(i);
-                        }
-                    }
-                }
-            }
-            let mouse_cart = spherical_to_cartesian(&mouse_polar);
-            let window_cart = spherical_to_cartesian(&window.polar_pos);
-            let dim_polar = Vec3::new(2.0, window.get_dimensions().1 as f32 / 1000.0, window.get_dimensions().0 as f32 / 1000.0);
-            let window_polar = window.polar_pos;
-            if mouse_polar.z > window_polar.z {
-                if mouse_polar.z < window_polar.z + (dim_polar.z / 2.0) {
-                    println!("{}", window.title);
-                }
-            }
-            // if mouse_cart.y < window_cart.y {
-            //     if mouse_cart.y > window_cart.y - (window.get_dimensions().1 as f32 / 1000.0) {
-            //         if Vec2::new(mouse_cart.x, mouse_cart.z).distance(Vec2::new(window_cart.x, window_cart.z)) < (window.get_dimensions().0 as f32 / 2000.0) {
-            //             println!("{}", window.title);
-            //         }
-            //     }
-            // }
-            // if (mouse_polar.z - window.polar_pos.z).abs() < (window.get_dimensions().1 as f32 / (1000.0 * 2.0)) {
-            //     if mouse_polar.z > window.polar_pos.z {
-            //         if (mouse_polar.y - window.polar_pos.y).abs() < (window.get_dimensions().0 as f32 / (1000.0 * 2.0)) {
-            //             if mouse_polar.y > window.polar_pos.y {
-            //                 println!("within the bounds of: {}", window.title);
-            //             }
-            //         }
-            //     }
-            // }
-            if sk.input_key(Key::MouseLeft).contains(ButtonState::JustInactive) {
-                clicked_window.take();
-            }
-            window.draw(&sk, Vec3::new(0.0, 0.0, 0.0));
-        }
-
-    }, |_|{});
-    return;
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::TRACE)
-        .init();
-    let sk = Settings::default().log_filter(LogFilter::Diagnostic).disable_unfocused_sleep(true).init().expect("Couldn't init stereokit");
-    let mut world = WorldModel::new(&sk);
-    // let mut windows = windows::main(&sk);
-    // let mirror_mesh = Mesh::find(&sk, "default/mesh_quad").unwrap();
-    // for window1 in &windows {
-    //     println!("dimesnions: {:?}", window1.texture.get_dimensions());
-    // }
-    sk.run(|sk| {
-        world.draw(sk);
-        // for window1 in &mut windows {
-        //     let size = [window1.texture.get_dimensions().0 as f32 * 0.0004, window1.texture.get_dimensions().1 as f32 *0.0004].into();
-        //
-        //     window(sk, window1.name.as_str(), &mut window1.pose, size, WindowType::WindowNormal, MoveType::MoveExact, |ui| {
-        //         unsafe { stereokit_sys::ui_layout_reserve(vec2 { x: size.x, y: size.y }, 0, 0.0) };
-        //         sk.add_mesh(&mirror_mesh, &window1.material, Mat4::from_scale_rotation_translation(Vec3::new(size.x, size.y, 1.0), Quat::IDENTITY, Vec3::new(0.0, -size.y/2.0, -0.01)).into(), WHITE, RenderLayer::LayerAll)
-        //     });
-        // }
-    }, |_| {});
 }
+
+
 
 fn cartesian_to_spherical(cartesian: &Vec3) -> Vec3 {
     let r: f32 = cartesian.length();

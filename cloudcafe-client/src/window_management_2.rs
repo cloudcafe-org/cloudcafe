@@ -127,6 +127,7 @@ use stereokit::ui::{MoveType, WindowType};
 use windows::Win32::Graphics::Gdi::ScreenToClient;
 use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
 use windows::Win32::UI::WindowsAndMessaging::{GetClientRect, GetForegroundWindow, GetParent, GetWindowRect, GetWindowTextA, GetWindowTextW, GetWindowThreadProcessId, HWND_TOP, MoveWindow, SetForegroundWindow, SwitchToThisWindow};
+use crate::MESH;
 
 pub struct WindowsWindow {
     pub(crate) hwnd: HWND,
@@ -140,7 +141,8 @@ impl WindowsWindow {
     pub(crate) fn new(sk: &impl StereoKitContext, hwnd: HWND) -> Result<Self> {
         let win_material = Material::copy_from_id(sk, DEFAULT_ID_MATERIAL_UNLIT)?;
         let win_texture = Texture::create(sk, TextureType::ImageNoMips, TextureFormat::None).unwrap();
-        let win_mesh = Mesh::find(sk, "default/mesh_quad")?;
+        let win_mesh = unsafe { MESH.as_ref().unwrap().clone() };
+        //let win_mesh = Mesh::find(sk, "default/mesh_sphere")?;
         win_texture.set_address_mode(stereokit::texture::TextureAddress::Clamp);
         win_material.set_texture(sk, "diffuse", &win_texture).unwrap();
         let device = Device::new_from_hwnd(unsafe { mem::transmute_copy(&hwnd.0)}).unwrap();

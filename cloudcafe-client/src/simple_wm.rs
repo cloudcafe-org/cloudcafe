@@ -4,7 +4,7 @@ use std::ops::AddAssign;
 use glam::{Mat4, Quat, Vec2, Vec3};
 use mint::Vector2;
 use stereokit::lifecycle::{StereoKitContext, StereoKitDraw};
-use stereokit::mesh::Mesh;
+use stereokit::mesh::{Ind, Mesh, Vertex};
 use stereokit::model::Model;
 use windows::Win32::Foundation::{HWND, POINT, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{GetCursorPos, GetWindowRect, IsIconic, MoveWindow, SetCursorPos};
@@ -12,12 +12,14 @@ use color_eyre::Result;
 use dxcapture::enumerate_windows;
 use dxcapture::window_finder::WindowInfo;
 use glam::EulerRot::XYZ;
-use stereokit::color_named::NAVY;
+use stereokit::color_named::{GREEN, NAVY, RED, WHITE};
 use stereokit::input::{ButtonState, Key, StereoKitInput};
 use stereokit::material::{DEFAULT_ID_MATERIAL, Material};
 use stereokit::pose::Pose;
 use stereokit::render::RenderLayer;
+use stereokit::values::Color32;
 use windows::s;
+use crate::MESH;
 use crate::window_management_2::{InternalPos, Mouse, RelativePos, Window, WindowManager, WindowsWindow};
 
 pub struct SimpleMouse {
@@ -380,7 +382,62 @@ pub fn test_inverse() {
 }
 
 pub fn main() {
-    let sk = stereokit::Settings::default().log_filter(stereokit::lifecycle::LogFilter::Diagnostic).disable_unfocused_sleep(true).init().expect("Couldn't init stereokit");
+    let sk = stereokit::Settings::default().flatscreen_pos_x(1500 as u32).log_filter(stereokit::lifecycle::LogFilter::Diagnostic).disable_unfocused_sleep(true).init().expect("Couldn't init stereokit");
+    let mesh = Mesh::create(&sk).unwrap();
+
+    let mut verts = vec![];
+    let mut indices = vec![];
+
+    let max = 36;
+
+    let depth = 0.3;
+    let curvature = 0.5;
+
+
+    for x in 0..max {
+        let mut val = ((x as f32 / max as f32) * curvature * PI + (PI * curvature / 2.0)).sin() * depth;
+        val -= depth;
+        if x % 2 != 0 {
+            verts.push(
+                Vertex {
+                    pos: Vec3::new(x as f32 / max as f32, 1.0, val).into(),
+                    norm: Vec3::new(0.0, 0.0, 1.0).into(),
+                    uv: Vec2::new(1.0 - (x as f32 / max as f32), 0.0).into(),
+                    col: Color32::from(WHITE),
+                }
+            );
+            if x >= 2 {
+                indices.push(x);
+                indices.push(x - 1);
+                indices.push(x - 2);
+            }
+        } else {
+            verts.push(
+                Vertex {
+                    pos: Vec3::new(x as f32 / max as f32, 0.0, val).into(),
+                    norm: Vec3::new(0.0, 0.0, 1.0).into(),
+                    uv: Vec2::new(1.0 - (x as f32 / max as f32), 1.0).into(),
+                    col: Color32::from(WHITE),
+                }
+            );
+            if x >= 2 {
+                indices.push(x - 2);
+                indices.push(x - 1);
+                indices.push(x);
+            }
+        }
+    }
+
+
+    let indices: Vec<_> = indices.iter().map(|a| Ind::new(*a)).collect();
+    mesh.set_verts(&sk, verts.as_slice(), false);
+    mesh.set_indices(&sk, indices.as_slice());
+
+    unsafe {
+        MESH.replace(mesh);
+    }
+
+
     let mut simple_window_manager = SimpleWm::new(&sk);
     let mut offset_pos = Vec3::new(-1.5, 0.0, -2.0);
     for window_info in enumerate_windows() {
@@ -395,6 +452,10 @@ pub fn main() {
             println!("invalid window: {}", window_info.title);
             continue;
         }
+        if offset_pos.x >= 3.0 {
+            offset_pos.x = -1.5;
+            offset_pos.y += 0.8;
+        }
         if window.is_valid() {
             window.set_internal_position(InternalPos(Vector2::from([20, 20])));
             window.set_internal_size(Vector2::from([1280, 720]));
@@ -406,7 +467,7 @@ pub fn main() {
     sk.run(|sk| {
         simple_window_manager.draw(sk);
         if simple_window_manager.captured_window.is_none() {
-            simple_window_manager.mouse_mut().set_internal_position(InternalPos(Vector2::from([10, 10])));
+            //simple_window_manager.mouse_mut().set_internal_position(InternalPos(Vector2::from([10, 10])));
         }
         if sk.input_key(Key::KeyQ).contains(ButtonState::Active) {
             if sk.input_key(Key::Ctrl).contains(ButtonState::Active) {
