@@ -27,7 +27,9 @@ pub struct RunMenu {
     entries: Vec<(String, DirEntry)>,
     search_textstyle: TextStyle,
     entry_textstyle: TextStyle,
+    #[allow(dead_code)]
     selected_option_mesh: Mesh,
+    #[allow(dead_code)]
     selected_option_material: Material,
     selected_option_model: Model,
     selected_option: Option<usize>,

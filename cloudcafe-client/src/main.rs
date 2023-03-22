@@ -7,6 +7,7 @@ mod asset_loader;
 mod virtual_manager;
 mod internal_os;
 mod run_menu;
+mod gamma_shader;
 
 use std::{env, fs};
 use std::ffi::c_int;
@@ -34,6 +35,7 @@ use crate::internal_os::internal_mouse::IMouse;
 use crate::run_menu::RunMenu;
 use crate::sk_env::SkEnv;
 use crate::values::IVec2;
+use crate::virtual_manager::VDesktop;
 use crate::virtual_manager::virtual_mouse::VMouse;
 
 fn main() {
@@ -50,12 +52,13 @@ fn main() {
 fn main2() -> Result<()> {
     //service::init()?;
     load_assets();
-    let sk = Settings::default().init()?;
+    let sk = Settings::default().disable_unfocused_sleep(true).init()?;
     let sk_env = SkEnv::new(&sk)?;
     let mut mouse = VMouse::new(&sk, 0.85)?;
     let mut internal_mouse = IMouse::new(IVec2::from([30, 30]));
     let mut run_menu = RunMenu::new(&sk)?;
     let mut keyboard_mouse = KeyboardMouseState::new();
+    let mut virtual_desktop = VDesktop::new(&sk)?;
     sk.run(|sk| {
         sk_env.draw(sk);
         internal_mouse.tick();
@@ -63,10 +66,11 @@ fn main2() -> Result<()> {
         mouse.draw(sk, Vec3::new(0.0, 0.0, 0.0));
         run_menu.draw(sk, &mut keyboard_mouse);
         if keyboard_mouse.get_input(Key::Windows).active {
-            if keyboard_mouse.get_input(Key::Y).active {
+            if keyboard_mouse.get_input(Key::Q).active {
                 sk.quit();
             }
         }
+        virtual_desktop.draw(sk);
     }, |_| {});
     Ok(())
 }

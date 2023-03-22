@@ -17,8 +17,11 @@ use crate::values::{cart_2_cyl, cart_2_sphere, cyl_2_cart, quat_lookat, sphere_2
 const MOUSE_MODEL: &[u8] = include_bytes!("..\\..\\assets\\mouse.glb");
 
 pub struct VMouse {
+    #[allow(dead_code)]
     shader: Shader,
+    #[allow(dead_code)]
     model: Model,
+    #[allow(dead_code)]
     material: Material,
     pos: Vec3,
     y_sensitivity: f32,

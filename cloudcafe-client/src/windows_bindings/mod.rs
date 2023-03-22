@@ -1,5 +1,6 @@
 use windows::Win32::Foundation::{HWND, POINT, RECT};
-use windows::Win32::UI::WindowsAndMessaging::{GetCursorPos, GetWindowRect, IsWindow, MoveWindow, SetCursorPos};
+use windows::Win32::UI::Input::KeyboardAndMouse::IsWindowEnabled;
+use windows::Win32::UI::WindowsAndMessaging::{GetCursorPos, GetWindowRect, IsWindow, IsWindowVisible, MoveWindow, SetCursorPos};
 
 pub type Hwnd = HWND;
 pub type Rect = RECT;
@@ -32,5 +33,15 @@ pub fn set_cursor_pos(x: i32, y: i32) {
 pub fn is_window(hwnd: Hwnd) -> bool {
     unsafe {
         IsWindow(hwnd)
+    }.as_bool()
+}
+pub fn window_visible(hwnd: Hwnd) -> bool {
+    unsafe {
+        IsWindowVisible(hwnd)
+    }.as_bool()
+}
+pub fn window_enabled(hwnd: Hwnd) -> bool {
+    unsafe {
+        IsWindowEnabled(hwnd)
     }.as_bool()
 }
