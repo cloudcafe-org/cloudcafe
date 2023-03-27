@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::fs;
 use std::fs::DirEntry;
+use std::path::Path;
 use stereokit::lifecycle::{StereoKitContext, StereoKitDraw};
 use color_eyre::Result;
 use glam::{Mat4, Quat, Vec2, Vec3};
@@ -46,17 +47,16 @@ impl RunMenu {
 
         let mut position = sphere_2_cart(Vec3::new(0.95, (PI / 2.0) + (PI / 16.0), -PI / 4.0));
         let mut entries = Vec::new();
-        if let Ok(e) = fs::read_dir("C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs") {
-            for entry in e {
-                if let Ok(entry) = entry {
-                    let name = entry.file_name().to_string_lossy().to_lowercase();
-                    entries.push((name, entry));
-                }
-            }
+
+        let e = get_all_files_in_directory(Path::new("C:\\ProgramData\\Microsoft\\Windows\\Start Menu"));
+        for entry in e {
+            let name = entry.file_name().to_string_lossy().to_lowercase();
+            entries.push((name, entry));
         }
+        println!("{:?}", entries);
         entries.sort_by_key(|(k, _)| k.to_owned());
         Ok(Self {
-            pose: Pose::new(position, quat_lookat(position, Vec3::new(0.0, 0.5, 0.0))),
+            pose: Pose::new(position, quat_lookat(position, Vec3::new(0.0, 0.3, 0.0))),
             input: None,
             entries,
             search_textstyle: TextStyle::new(sk, Font::default(sk), 0.05, color_named::BURLY_WOOD),
@@ -67,7 +67,8 @@ impl RunMenu {
             selected_option: None,
         })
     }
-    pub fn draw(&mut self, sk: &StereoKitDraw, keyboard_mouse: &mut KeyboardMouseState) {
+    pub fn draw(&mut self, sk: &StereoKitDraw, keyboard_mouse: &mut KeyboardMouseState, radius: f32) {
+        //self.pose.position = sphere_2_cart(Vec3::new(radius - 0.05, (PI / 2.0) + (PI / 16.0), -PI / 4.0)).into();
         window(sk, "", &mut self.pose, Vec2::new(0.5, 0.5).into(), WindowType::WindowBody, MoveType::MoveNone, |ui| {
             if let Some(input) = self.input.as_ref() {
                 if let Some(selected_entry) = self.selected_option.as_ref() {
@@ -99,6 +100,9 @@ impl RunMenu {
         }
 
         let mut input_changed = false;
+        if keyboard_mouse.get_input(Key::MouseLeft).just_changed || keyboard_mouse.get_input(Key::MouseRight).just_changed {
+            self.input.take();
+        }
         if let Some(input) = self.input.as_mut() {
             if keyboard_mouse.get_input(Key::Backspace).just_changed && keyboard_mouse.get_input(Key::Backspace).active {
                 input.pop();
@@ -124,6 +128,10 @@ impl RunMenu {
                         }
                     } else {
                         self.selected_option.replace(selected);
+                    }
+                } else {
+                    if entries.len() != 0 {
+                        self.selected_option.replace(entries.len() - 1);
                     }
                 }
             }
@@ -155,4 +163,25 @@ impl RunMenu {
             }
         }
     }
+}
+
+fn get_all_files_in_directory(dir_path: &Path) -> Vec<std::fs::DirEntry> {
+    let mut files = Vec::new();
+
+    if dir_path.is_dir() {
+        if let Ok(entries) = fs::read_dir(dir_path) {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    if entry.file_type().unwrap().is_dir() {
+                        let sub_dir_files = get_all_files_in_directory(&entry.path());
+                        files.extend(sub_dir_files);
+                    } else {
+                        files.push(entry);
+                    }
+                }
+            }
+        }
+    }
+
+    files
 }

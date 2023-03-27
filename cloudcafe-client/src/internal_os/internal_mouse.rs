@@ -27,6 +27,9 @@ impl IMouse {
         if self.lock_cursor {
             self.pos = self.cursor_lock_position;
             self.set_pos(self.cursor_lock_position);
+        } else {
+            self.delta_pos.x = 0;
+            self.delta_pos.y = 0;
         }
     }
     pub fn pos(&self) -> IVec2 {

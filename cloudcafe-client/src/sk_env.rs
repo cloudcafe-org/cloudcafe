@@ -35,15 +35,15 @@ impl SkEnv {
             bridge,
         })
     }
-    pub fn draw(&self, sk: &StereoKitDraw) {
+    pub fn draw(&self, sk: &StereoKitDraw, radius: f32) {
         let scale = 0.15;
         self.skybox.draw(sk, Mat4::from_scale_rotation_translation(Vec3::new(scale, scale, scale), Quat::IDENTITY, Vec3::new(0.0, 0.0, 0.0)).into(),
                     WHITE, RenderLayer::Layer1);
         self.bridge_lip.draw(sk,
-                   Mat4::from_scale_rotation_translation(Vec3::new(1.0, 1.0, 1.0), Quat::IDENTITY, Vec3::new(0.0, 0.0, 0.0)).into(),
+                   Mat4::from_scale_rotation_translation(Vec3::new(radius, radius, radius), Quat::IDENTITY, Vec3::new(0.0, -0.9, 0.0)).into(),
                    Color128::new(0.2, 0.2, 0.2, 0.5), RenderLayer::Layer1);
         self.bridge.draw(sk,
-                    Mat4::from_scale_rotation_translation(Vec3::new(1.0, 1.0, 1.0), Quat::IDENTITY, Vec3::new(0.0, 0.0, 0.0)).into(),
+                    Mat4::from_scale_rotation_translation(Vec3::new(radius, radius, radius), Quat::IDENTITY, Vec3::new(0.0, -0.9, 0.0)).into(),
                     Color128::new(0.3, 0.3, 0.3, 0.8), RenderLayer::Layer1);
     }
 }

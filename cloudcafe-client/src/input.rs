@@ -9,6 +9,7 @@ use crate::input::Key::Q;
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
 pub enum Key {
     MouseLeft,
+    MouseRight,
     Windows,
     Backspace,
     ArrowDown,
@@ -109,6 +110,7 @@ impl KeyboardMouseState {
     pub fn new() -> Self {
         let mut keys = HashMap::new();
         keys.insert(Key::MouseLeft, InputState::default());
+        keys.insert(Key::MouseRight, InputState::default());
         keys.insert(Key::Windows, InputState::default());
         keys.insert(Key::Backspace, InputState::default());
         keys.insert(Key::Enter, InputState::default());
@@ -221,7 +223,17 @@ impl KeyboardMouseState {
                                                                 MouseButtonPress::Other(_) => {}
                                                             }
                                                         }
-                                                        MouseButton::Right(_) => {}
+                                                        MouseButton::Right(_) => {
+                                                            match pressed {
+                                                                MouseButtonPress::Down => {
+                                                                    keys.insert(Key::MouseRight, InputState::new(true, true));
+                                                                }
+                                                                MouseButtonPress::Up => {
+                                                                    keys.insert(Key::MouseRight, InputState::new(false, true));
+                                                                }
+                                                                MouseButtonPress::Other(_) => {}
+                                                            }
+                                                        }
                                                         MouseButton::Middle(_) => {}
                                                         MouseButton::X1(_) => {}
                                                         MouseButton::X2(_) => {}
@@ -254,9 +266,11 @@ impl KeyboardMouseState {
     pub fn get_input(&mut self, key: Key) -> InputState {
         let mut keys = self.keys.lock().unwrap();
         let return_state = *keys.get(&key).expect("key should be in keys map");
-        if return_state.just_changed {
-            keys.get_mut(&key).unwrap().just_changed = false;
-        }
         return_state
+    }
+    pub fn reset_active(&mut self) {
+        for (_, key_state) in self.keys.lock().unwrap().iter_mut() {
+            key_state.just_changed = false;
+        }
     }
 }

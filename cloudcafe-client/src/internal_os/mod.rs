@@ -24,7 +24,7 @@ impl FakeMonitor {
         Ok(Self {
             handle,
             rect,
-            pos: [rect.top, rect.left].into(),
+            pos: [rect.left, rect.top].into(),
             size,
         })
     }

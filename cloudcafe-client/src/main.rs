@@ -12,7 +12,7 @@ mod gamma_shader;
 use std::{env, fs};
 use std::ffi::c_int;
 use std::ptr::null_mut;
-use color_eyre::Result;
+use color_eyre::{Report, Result};
 use glam::{Mat4, Quat, Vec3};
 use native_dialog::MessageType;
 use stereokit::color_named::WHITE;
@@ -50,27 +50,27 @@ fn main() {
     }
 }
 fn main2() -> Result<()> {
-    //service::init()?;
+    let console_hwnd = service::init()?.ok_or(Report::msg("no console hwnd"))?;
     load_assets();
-    let sk = Settings::default().disable_unfocused_sleep(true).init()?;
+    let mut radius = 1.2;
+    let sk = Settings::default().render_scaling(6.0).app_name("Cloudcafe XR Desktop").disable_unfocused_sleep(true).init()?;
     let sk_env = SkEnv::new(&sk)?;
-    let mut mouse = VMouse::new(&sk, 0.85)?;
-    let mut internal_mouse = IMouse::new(IVec2::from([30, 30]));
+    let mut internal_mouse = IMouse::new(IVec2::from([300, 300]));
     let mut run_menu = RunMenu::new(&sk)?;
     let mut keyboard_mouse = KeyboardMouseState::new();
-    let mut virtual_desktop = VDesktop::new(&sk)?;
+    let mut virtual_desktop = VDesktop::new(&sk, console_hwnd, radius)?;
+    internal_mouse.tick();
     sk.run(|sk| {
-        sk_env.draw(sk);
+        sk_env.draw(sk, radius);
         internal_mouse.tick();
-        mouse.update_pos(internal_mouse.delta_pos.x, internal_mouse.delta_pos.y);
-        mouse.draw(sk, Vec3::new(0.0, 0.0, 0.0));
-        run_menu.draw(sk, &mut keyboard_mouse);
+        run_menu.draw(sk, &mut keyboard_mouse, radius);
         if keyboard_mouse.get_input(Key::Windows).active {
             if keyboard_mouse.get_input(Key::Q).active {
                 sk.quit();
             }
         }
-        virtual_desktop.draw(sk);
+        virtual_desktop.draw(sk, &mut internal_mouse, &mut keyboard_mouse, &mut radius);
+        keyboard_mouse.reset_active();
     }, |_| {});
     Ok(())
 }
