@@ -32,11 +32,13 @@ use windows::Win32::UI::WindowsAndMessaging::{CallNextHookEx, DispatchMessageW, 
 use crate::asset_loader::load_assets;
 use crate::input::{Key, KeyboardMouseState};
 use crate::internal_os::internal_mouse::IMouse;
+use crate::internal_os::internal_window::IWindow;
 use crate::run_menu::RunMenu;
 use crate::sk_env::SkEnv;
 use crate::values::IVec2;
 use crate::virtual_manager::VDesktop;
 use crate::virtual_manager::virtual_mouse::VMouse;
+use crate::windows_bindings::{get_window_rect};
 
 fn main() {
     match main2() {
@@ -56,14 +58,14 @@ fn main2() -> Result<()> {
     let sk = Settings::default().render_scaling(6.0).app_name("Cloudcafe XR Desktop").disable_unfocused_sleep(true).init()?;
     let sk_env = SkEnv::new(&sk)?;
     let mut internal_mouse = IMouse::new(IVec2::from([300, 300]));
-    let mut run_menu = RunMenu::new(&sk)?;
+    //let mut run_menu = RunMenu::new(&sk)?;
     let mut keyboard_mouse = KeyboardMouseState::new();
     let mut virtual_desktop = VDesktop::new(&sk, console_hwnd, radius)?;
     internal_mouse.tick();
     sk.run(|sk| {
-        sk_env.draw(sk, radius);
         internal_mouse.tick();
-        run_menu.draw(sk, &mut keyboard_mouse, radius);
+        sk_env.draw(sk, radius, &mut virtual_desktop, &mut internal_mouse);
+        //run_menu.draw(sk, &mut keyboard_mouse, radius);
         if keyboard_mouse.get_input(Key::Windows).active {
             if keyboard_mouse.get_input(Key::Q).active {
                 sk.quit();

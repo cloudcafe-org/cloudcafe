@@ -1,4 +1,5 @@
 mod powershell_scripts;
+mod mouse_window;
 
 use std::io::{Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream};
@@ -8,6 +9,7 @@ use std::thread;
 use std::time::Duration;
 use bincode::{serialize, serialize_into};
 use color_eyre::{Report, Result};
+use image::{ImageBuffer, Rgba};
 use serde::{Deserialize, Serialize};
 use sysinfo::{Pid, PidExt, ProcessExt, SystemExt};
 use windows::Win32::Foundation::HWND;
@@ -77,19 +79,23 @@ fn connect_to_service() -> Result<Hwnd> {
     }
 }
 fn winit_mouse_capture() -> Result<()> {
-    let event_loop = winit::event_loop::EventLoop::new();
-    let window = winit::window::WindowBuilder::new().with_fullscreen(Some(Fullscreen::Borderless(None))).with_title("Cloudcafe XR Desktop").build(&event_loop).unwrap();
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = event_loop::ControlFlow::Wait;
-
-        match event {
-            winit::event::Event::WindowEvent {
-                event: winit::event::WindowEvent::CloseRequested,
-                window_id,
-            } if window_id == window.id() => *control_flow = event_loop::ControlFlow::Exit,
-            _ => (),
-        }
-    });
+    mouse_window::main().unwrap();
+    // let event_loop = winit::event_loop::EventLoop::new();
+    // let window = winit::window::WindowBuilder::new().with_maximized(true).with_title("Cloudcafe XR Desktop").build(&event_loop).unwrap();
+    //
+    // let size = window.inner_size();
+    //
+    // event_loop.run(move |event, _, control_flow| {
+    //     *control_flow = event_loop::ControlFlow::Wait;
+    //
+    //     match event {
+    //         winit::event::Event::WindowEvent {
+    //             event: winit::event::WindowEvent::CloseRequested,
+    //             window_id,
+    //         } if window_id == window.id() => *control_flow = event_loop::ControlFlow::Exit,
+    //         _ => (),
+    //     }
+    // });
     Ok(())
 }
 fn get_first_arg() -> String {

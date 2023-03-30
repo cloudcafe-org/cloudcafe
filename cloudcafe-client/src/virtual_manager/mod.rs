@@ -12,7 +12,7 @@ use windows::Win32::Graphics::Gdi::HMONITOR;
 use crate::internal_os::FakeMonitor;
 use crate::internal_os::internal_window::IWindow;
 use crate::virtual_manager::virtual_window::{IsWindowValid, VWindow, WindowCapture};
-use crate::windows_bindings::{class_name, get_window_rect, Hwnd, is_window, Rect, window_enabled, window_visible};
+use crate::windows_bindings::{class_name, get_real_window_rect, get_real_window_size, get_window_rect, Hwnd, is_window, Rect, window_enabled, window_visible};
 use color_eyre::{Report, Result};
 use color_eyre::owo_colors::OwoColorize;
 use stereokit::material::Cull;
@@ -27,7 +27,7 @@ pub mod virtual_mouse;
 pub mod virtual_window;
 pub mod desktop_capture;
 
-pub const INVALID_WINDOW_TITLES: [&'static str; 4] = ["Cloudcafe XR Desktop", "SteamVR", "OBS", "Mixed Reality Portal"];
+pub const INVALID_WINDOW_TITLES: [&'static str; 1] = ["Cloudcafe XR Desktop" /*"SteamVR",*/ /*"OBS",*/ /*"Mixed Reality Portal"*/];
 
 pub struct VDesktop {
     capture_desktop: CaptureDesktop,
@@ -35,15 +35,16 @@ pub struct VDesktop {
     current_list_windows_thread: JoinHandle<()>,
     current_list_windows: Arc<Mutex<Vec<Hwnd>>>,
     fake_monitor: FakeMonitor,
-    v_mouse: VMouse,
+    pub(crate) v_mouse: VMouse,
     grabbed_window: Option<(isize, Vec3)>,
     resize_window: Option<(isize, ResizeType, Vec3)>,
-    captured_window: Option<isize>,
+    pub(crate) captured_window: Option<isize>,
     skip_windows: Vec<isize>,
     console_hwnd: Hwnd,
-    center: Vec3,
+    pub(crate) center: Vec3,
     radius: f32,
     tick_counter: u32,
+    pub lock_cursor: bool,
 }
 fn is_invalid_window(window_title: &str) -> bool {
     for invalid_title in INVALID_WINDOW_TITLES {
@@ -158,6 +159,7 @@ impl VDesktop {
             center: Vec3::new(0.0, 0.0, 0.0),
             radius,
             tick_counter: 0,
+            lock_cursor: true,
         })
     }
     fn get_current_list_of_windows(&self) -> Vec<HWND> {
@@ -239,6 +241,14 @@ impl VDesktop {
         for invalid_window in invalid_windows {
             drop(self.windows.remove(&invalid_window));
         }
+
+        if !self.lock_cursor {
+            internal_mouse.lock_cursor = false;
+            return;
+        } else {
+            //internal_mouse.lock_cursor = true;
+        }
+
         if let Some((id, offset)) = self.grabbed_window.take() {
             self.v_mouse.draw(sk, Vec3::new(0.0, 0.0, 0.0));
             if keyboard_mouse.get_input(Key::MouseLeft).active {
@@ -311,19 +321,25 @@ impl VDesktop {
             match self.captured_window.is_some() {
                 false => {
                     if let Some(window) = self.windows.get_mut(&changed_id) {
+                        let size = window.internal_window.size().unwrap();
+                        //let real_size = get_real_window_size(window.internal_window.hwnd);
                         if let Some(capture) = window.window_capture.as_mut() {
-                            capture.mesh = WindowCapture::gen_mesh(sk, 0.0, 0.0, 1.0, 1.0).unwrap();
+                            capture.mesh = WindowCapture::gen_mesh(sk, 0.0, 0.0, (size.x as f32 - 17.0) / size.x as f32, size.y as f32 / (size.y as f32 + 10.0)).unwrap();
                             capture.model.set_mesh(sk, 0, &capture.mesh);
                         }
                     }
                 }
                 true => {
                     if let Some(window) = self.windows.get_mut(&changed_id) {
-                        let size = window.internal_window.size().unwrap();
-                        let pos = window.internal_window.pos();
+
+                        let real_rect = get_real_window_rect(window.internal_window.hwnd);
+                        let size = UVec2::from([(real_rect.right - real_rect.left) as u32, (real_rect.bottom - real_rect.top) as u32]);
+                        let pos = IVec2::from([real_rect.left, real_rect.top]);
+                        //let size = window.internal_window.size().unwrap();
+                        //let pos = window.internal_window.pos();
                         let monitor_pos = self.fake_monitor.pos;
                         let monitor_size = self.fake_monitor.size;
-                        let crop = calculate_crop_values(pos.x, pos.y, size.x, size.y, monitor_pos.x, monitor_pos.y, monitor_size.x, monitor_size.y);
+                        let crop = calculate_crop_values( monitor_pos.x, monitor_pos.y, monitor_size.x, monitor_size.y, pos.x, pos.y, size.x, size.y);
                         if let Some(capture) = window.window_capture.as_mut() {
                             capture.mesh = WindowCapture::gen_mesh(sk, crop.0, crop.1, crop.2, crop.3).unwrap();
                             capture.model.set_mesh(sk, 0, &capture.mesh);
@@ -539,13 +555,28 @@ fn calculate_crop_values(
     let window_width = window_width as f32;
     let window_height = window_height as f32;
 
+    //println!("monitor_x: {monitor_x}, monitor_y: {monitor_y}, monitor_width: {monitor_width}, monitor_height: {monitor_height}");
+    //println!("window_x: {window_x}, window_y: {window_y}, window_width: {window_width}, window_height: {window_height}");
 
-    (0.5025, 0.017, 0.9880, 0.4895)
-    //let crop_left = (window_x - monitor_x) / monitor_width;
-    //let crop_right = (monitor_x + monitor_width - window_x - window_width) / monitor_width;
-    //let crop_bottom = (window_y - monitor_y) / monitor_height;
-    //let crop_top = (monitor_y + monitor_height - window_y - window_height) / monitor_height;
+    //(0.5025, 0.017, 0.9880, 0.4895)
+    let mut crop_left = (window_x - monitor_x) / monitor_width;
+    let mut crop_right = (monitor_x + monitor_width - window_x - window_width) / monitor_width;
+    let mut crop_bottom = (window_y - monitor_y) / monitor_height;
+    let mut crop_top = (monitor_y + monitor_height - window_y - window_height) / monitor_height;
 
+    crop_bottom = 1.0 - crop_bottom;
+    crop_top = 1.0 - crop_top;
 
-    //(crop_left, crop_right, crop_bottom, crop_top)
+    let border = 0.0001;
+    crop_left += border;
+    crop_right += border;
+    crop_bottom -= border;
+    crop_top -= border;
+    //crop_left += 0.0022;
+    //crop_right += 0.0068;
+    //crop_bottom -= 0.004;
+    //crop_top += 0.005;
+
+    (crop_left, crop_right, crop_bottom, crop_top)
+    //(0.0, 0.0, 1.0, 1.0)
 }

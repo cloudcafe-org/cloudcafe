@@ -1,10 +1,14 @@
-use std::ffi::{OsStr, OsString};
+use std::ffi::{c_void, OsStr, OsString};
+use std::mem::size_of;
 use std::os::windows::prelude::OsStringExt;
 use std::string::FromUtf16Error;
+use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HWND, POINT, RECT};
+use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::System::Console::GetConsoleWindow;
 use windows::Win32::UI::Input::KeyboardAndMouse::IsWindowEnabled;
-use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetCursorPos, GetWindow, GetWindowRect, GW_CHILD, GW_HWNDNEXT, IsWindow, IsWindowVisible, MoveWindow, SetCursorPos};
+use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, GetClassNameW, GetCursorPos, GetWindow, GetWindowRect, GW_CHILD, GW_HWNDNEXT, IsWindow, IsWindowVisible, MoveWindow, SetCursorPos};
+use crate::values::UVec2;
 
 pub type Hwnd = HWND;
 pub type Rect = RECT;
@@ -16,6 +20,34 @@ pub fn get_window_rect(hwnd: Hwnd) -> Rect {
         GetWindowRect(hwnd, &mut rect);
     }
     rect
+}
+pub fn get_real_window_rect(hwnd: Hwnd) -> Rect {
+    let mut rect = Rect::default();
+    let mut frame = Rect::default();
+    unsafe {
+        GetWindowRect(hwnd, &mut rect);
+        DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut frame as *mut _ as *mut c_void, size_of::<RECT>() as u32).unwrap();
+    }
+    // let mut border = RECT {
+    //     left: frame.left - rect.left,
+    //     top: frame.top - rect.top,
+    //     right: rect.right - frame.right,
+    //     bottom: rect.bottom - frame.bottom,
+    // };
+    //
+    // rect.left -= border.left;
+    // rect.top -= border.top;
+    // rect.right += border.left + border.right;
+    // rect.bottom += border.top + border.bottom;
+
+    frame.right -= 21;
+    frame.top -= 10;
+
+    frame
+}
+pub fn get_real_window_size(hwnd: Hwnd) -> (u32, u32) {
+    let rect = get_real_window_rect(hwnd);
+    ((rect.right - rect.left) as u32, (rect.bottom - rect.top) as u32)
 }
 pub fn move_window(hwnd: Hwnd, x: i32, y: i32, width: i32, height: i32, repaint: bool) {
     unsafe {
@@ -72,4 +104,10 @@ pub fn class_name(hwnd: Hwnd) -> Option<String> {
         Ok(string) => Some(string),
         Err(_) => None
     }
+}
+pub fn main_monitor_dimensions() -> UVec2 {
+    let main_monitor_width = unsafe { windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics(windows::Win32::UI::WindowsAndMessaging::SM_CXSCREEN) };
+    let main_monitor_height = unsafe { windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics(windows::Win32::UI::WindowsAndMessaging::SM_CYSCREEN) };
+
+    [main_monitor_width as u32, main_monitor_height as u32].into()
 }
