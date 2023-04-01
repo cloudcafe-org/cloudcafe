@@ -45,7 +45,7 @@ impl MouseCursor {
         Ok(Self{
             point_model: PointModel::new(sk)?,
             resize_model: ResizeModel::new(sk)?,
-            color: DARK_GREY,
+            color: BLACK,
             cursor_type: CursorType::Resize(ResizeType::Vertical),
         })
     }
@@ -124,8 +124,8 @@ impl VMouse {
         Ok(Self {
                 mouse_cursor: MouseCursor::new(sk)?,
                 pos: cyl_2_cart(Vec3::new(radius, 0.0, 0.0)),
-                y_sensitivity: 300.0,
-                x_sensitivity: 500.0,
+                y_sensitivity: 600.0,
+                x_sensitivity: 1000.0,
             })
     }
     pub fn update_pos(&mut self, dx: i32, dy: i32) {
@@ -169,7 +169,7 @@ impl VMouse {
         let quat = quat_lookat(center, self.pos);
         let rotated_quat = Quat::from_euler(XYZ, 0.0, 90.0_f32.to_radians(), 0.0).mul_quat(quat);
         let mouse_matrix = Mat4::from_scale_rotation_translation(
-            Vec3::new(0.03, 0.03, 0.03),
+            Vec3::new(0.008, 0.008, 0.008),
             rotated_quat,
             self.pos
         );
@@ -178,15 +178,15 @@ impl VMouse {
             pos: self.pos.into(),
             dir: Quat::from(pose.orientation).mul_vec3(Vec3::new(0.0, 0.0, -1.0)).into(),
         };
-        line_addv(sk, &LinePoint {
-            point: self.pos.into(),
-            thickness: 0.003,
-            color: Color32::new(0, 0, 0, 200),
-        }, &LinePoint {
-            point: (Vec3::from(ray.pos) + Vec3::from(ray.dir)).into(),
-            thickness: 0.003,
-            color: Color32::new(10, 10, 10, 150),
-        });
+        // line_addv(sk, &LinePoint {
+        //     point: self.pos.into(),
+        //     thickness: 0.0003,
+        //     color: Color32::new(0, 0, 0, 200),
+        // }, &LinePoint {
+        //     point: (Vec3::from(ray.pos) + Vec3::from(ray.dir)).into(),
+        //     thickness: 0.0003,
+        //     color: Color32::new(10, 10, 10, 150),
+        // });
         self.mouse_cursor.draw(sk, mouse_matrix);
     }
     pub fn gen_ray(&self, sk: &StereoKitDraw, center: Vec3, matrix: &Mat4) -> Ray {

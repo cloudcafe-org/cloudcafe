@@ -1,3 +1,5 @@
+use std::thread;
+use std::time::Duration;
 use stereokit::lifecycle::{StereoKitContext, StereoKitDraw};
 use stereokit::render::{RenderLayer, SphericalHarmonics, StereoKitRender};
 use stereokit::texture::{Texture, TextureAddress, TextureFormat, TextureType};
@@ -7,6 +9,7 @@ use dxcapture::{Capture, Device};
 use glam::{Mat4, Quat, Vec2, Vec3};
 use glam::EulerRot::XYZ;
 use lerp::Lerp;
+use native_dialog::MessageType;
 use stereokit::color_named::WHITE;
 use stereokit::material::{Cull, DEFAULT_ID_MATERIAL_UNLIT, DepthTest, Material, Transparency};
 use stereokit::model::Model;
@@ -19,7 +22,7 @@ use crate::internal_os::internal_mouse::IMouse;
 use crate::values::{cart_2_cyl, cyl_2_cart};
 use crate::virtual_manager::VDesktop;
 use crate::virtual_manager::virtual_mouse::VMouse;
-use crate::windows_bindings::{get_cursor_pos, main_monitor_dimensions, set_cursor_pos};
+use crate::windows_bindings::{get_cursor_pos, get_dc, get_pixel, main_monitor_dimensions, set_cursor_pos};
 
 pub struct SkEnv {
     pub shader: Shader,
@@ -46,7 +49,14 @@ impl SkEnv {
         bridge_material.set_transparency(sk, Transparency::Blend);
         bridge_material.set_parameter(sk, "color", &Color128::new(0.2, 0.2, 0.2, 1.0));
 
-        let device = Device::new_from_displays(None).unwrap();
+        let device = match Device::new_from_displays(None) {
+            Ok(device) => device,
+            Err(_) => {
+                native_dialog::MessageDialog::new().set_type(MessageType::Error).set_text("restart Windows, api call for finding displays no longer functions").show_alert().unwrap();
+                thread::sleep(Duration::from_secs(2));
+                panic!("need to restart windows");
+            }
+        };
         let capture = Capture::new(&device).unwrap();
         let capture_texture = Texture::create(sk, TextureType::ImageNoMips, TextureFormat::None)
             .ok_or(Report::msg("unable to create texture for capture"))?;
@@ -77,12 +87,12 @@ impl SkEnv {
             capture_material: material,
             device,
             capture,
-            dc:  unsafe { windows::Win32::Graphics::Gdi::GetDC(HWND(0))},
+            dc:  get_dc(HWND(0)),
         })
     }
     pub fn draw(&self, sk: &StereoKitDraw, mut radius: f32, v_desktop: &mut VDesktop, internal_mouse: &mut IMouse) {
         let bridge_matrix = Mat4::from_scale_rotation_translation(Vec3::new(radius, radius, radius), Quat::IDENTITY, Vec3::new(0.0, -0.9, 0.0));
-        radius *= 1.335;
+        radius *= 1.3;
         let second_bridge_matrix =
             Mat4::from_scale_rotation_translation(Vec3::new(radius, radius, radius), Quat::from_euler(XYZ, 0.0, -90.0_f32.to_radians(), 0.0), Vec3::new(0.0, -0.6, 0.0));
         let ray = v_desktop.v_mouse.gen_ray(sk, v_desktop.center, &second_bridge_matrix);
@@ -101,7 +111,7 @@ impl SkEnv {
                 let val = pos.x.atan2(pos.z);
 
                 //println!("angle: {:?}, pos: {:?}", val, pos);
-                if pos.y < -0.05 {
+                if pos.y < -0.15 {
                     v_desktop.lock_cursor = false;
                     internal_mouse.lock_cursor = false;
                     let monitor_dimensions = main_monitor_dimensions();
@@ -111,9 +121,9 @@ impl SkEnv {
             }
         } else if v_desktop.captured_window.is_none() {
             let mouse_pos = get_cursor_pos();
-            let color = unsafe { windows::Win32::Graphics::Gdi::GetPixel(self.dc, mouse_pos.x, mouse_pos.y)};
+            let color = get_pixel(self.dc, mouse_pos.x, mouse_pos.y);
             //println!("color: {}", color.0);
-            if color.0 == 592137 || color.0 == 1618383 {
+            if color.0 == 592137 {
                 //println!("is black");
                 v_desktop.lock_cursor = true;
                 internal_mouse.lock_cursor = true;

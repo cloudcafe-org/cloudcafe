@@ -16,7 +16,7 @@ use color_eyre::{Report, Result};
 use glam::{Mat4, Quat, Vec3};
 use native_dialog::MessageType;
 use stereokit::color_named::WHITE;
-use stereokit::lifecycle::StereoKitContext;
+use stereokit::lifecycle::{DisplayMode, StereoKitContext};
 use stereokit::material::{DEFAULT_ID_MATERIAL, Material, Transparency};
 use stereokit::mesh::Mesh;
 use stereokit::model::Model;
@@ -54,13 +54,14 @@ fn main() {
 fn main2() -> Result<()> {
     let console_hwnd = service::init()?.ok_or(Report::msg("no console hwnd"))?;
     load_assets();
-    let mut radius = 1.2;
-    let sk = Settings::default().render_scaling(6.0).app_name("Cloudcafe XR Desktop").disable_unfocused_sleep(true).init()?;
+    let mut radius = 1.3;
+    let sk = Settings::default().display_preference(DisplayMode::MixedReality).no_flatscreen_fallback(true).render_scaling(2.0).app_name("Cloudcafe XR Desktop").disable_unfocused_sleep(true).init()?;
     let sk_env = SkEnv::new(&sk)?;
     let mut internal_mouse = IMouse::new(IVec2::from([300, 300]));
     //let mut run_menu = RunMenu::new(&sk)?;
     let mut keyboard_mouse = KeyboardMouseState::new();
     let mut virtual_desktop = VDesktop::new(&sk, console_hwnd, radius)?;
+    println!("virtual desktop created");
     internal_mouse.tick();
     sk.run(|sk| {
         internal_mouse.tick();

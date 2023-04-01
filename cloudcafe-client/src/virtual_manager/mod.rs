@@ -109,6 +109,7 @@ impl VDesktop {
             loop {
                 thread::sleep(Duration::from_millis(5));
                 let mut windows = Vec::new();
+                println!("enumerating windows");
                 for window_info in enumerate_windows() {
                     let hwnd = HWND(window_info.handle as isize);
                     if is_invalid_window(&window_info.title) {
@@ -137,6 +138,7 @@ impl VDesktop {
                     }
                     windows.push(hwnd);
                 }
+                println!("finished enumerating windows");
                 let mut clw = c_l_w.lock().unwrap();
                 clw.clear();
                 for i in windows {
@@ -233,12 +235,19 @@ impl VDesktop {
         let ids = self.windows.keys().map(|a| *a).collect::<Vec<_>>();
         for id in ids {
             let focused = self.is_focused(id);
+            println!("begin window draw");
             if IsWindowValid::Invalid == self.windows.get_mut(&id).unwrap().draw(sk, self.radius, focused) {
                 println!("window is invalid: {}", id);
                 invalid_windows.push(id);
             }
+            println!("end window draw");
         }
         for invalid_window in invalid_windows {
+            if let Some(id) = self.captured_window.as_ref() {
+                if *id == invalid_window {
+                    self.captured_window.take();
+                }
+            }
             drop(self.windows.remove(&invalid_window));
         }
 
@@ -250,22 +259,24 @@ impl VDesktop {
         }
 
         if let Some((id, offset)) = self.grabbed_window.take() {
-            self.v_mouse.draw(sk, Vec3::new(0.0, 0.0, 0.0));
-            if keyboard_mouse.get_input(Key::MouseLeft).active {
-                let mut position = cart_2_cyl(self.v_mouse.pos + offset);
-                position.x = self.radius;
-                let position = cyl_2_cart(position);
-                self.windows.get_mut(&id).unwrap().pose.position = position.into();
-                let face_user_quat = {
-                    let mut quat = quat_lookat(self.center, position);
-                    if self.v_mouse.pos.y > -0.7 {
-                        quat.x = 0.0; quat.z = 0.0;
-                    }
-                    quat
-                };
-                self.windows.get_mut(&id).unwrap().pose.orientation = face_user_quat.into();
-                self.grabbed_window.replace((id, offset));
-                internal_mouse.lock_cursor = true;
+            if self.windows.contains_key(&id) {
+                self.v_mouse.draw(sk, Vec3::new(0.0, 0.0, 0.0));
+                if keyboard_mouse.get_input(Key::MouseLeft).active {
+                    let mut position = cart_2_cyl(self.v_mouse.pos + offset);
+                    position.x = self.radius;
+                    let position = cyl_2_cart(position);
+                    self.windows.get_mut(&id).unwrap().pose.position = position.into();
+                    let face_user_quat = {
+                        let mut quat = quat_lookat(self.center, position);
+                        if self.v_mouse.pos.y > -0.7 {
+                            quat.x = 0.0; quat.z = 0.0;
+                        }
+                        quat
+                    };
+                    self.windows.get_mut(&id).unwrap().pose.orientation = face_user_quat.into();
+                    self.grabbed_window.replace((id, offset));
+                    internal_mouse.lock_cursor = true;
+                }
             }
         } else {
             if let Some(id) = self.captured_window.take() {

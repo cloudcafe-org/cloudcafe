@@ -34,9 +34,9 @@ psIn vs(vsIn input, uint id : SV_InstanceID) {
 float4 ps(psIn input) : SV_TARGET {
 	float4 col = diffuse.Sample(diffuse_s, input.uv);
 	col.rgb = pow(col.rgb, float3(2.2, 2.2, 2.2));
-	if (col.r <= 0.01) {
-		if (col.g <= 0.01) {
-			if (col.b <= 0.01) {
+	if (col.r <= 0.001) {
+		if (col.g <= 0.001) {
+			if (col.b <= 0.001) {
 				discard;
 			}
 		}

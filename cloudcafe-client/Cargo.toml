@@ -1,9 +1,13 @@
 [package]
-name = "cloudcafe-client"
+name = "CloudCafe"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+rust-embed = "6.2.0"
+winres = "0.1.12"
 
 [dependencies]
 stereokit = { path = "../../stereokit-rs"}

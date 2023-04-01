@@ -21,8 +21,8 @@ use crate::windows_bindings::{get_console_window, Hwnd};
 
 const PORT: u16 = 25555;
 const ADDRESS: Ipv4Addr = Ipv4Addr::LOCALHOST;
-const TIMEOUT_DUR: Duration = Duration::from_secs(1);
-const SERVICE_STARTUP_WAIT: Duration = Duration::from_secs(40);
+const TIMEOUT_DUR: Duration = Duration::from_secs(10);
+const SERVICE_STARTUP_WAIT: Duration = Duration::from_secs(400);
 const ELEVATED_SERVICE_ARG: &'static str = "elevated_service";
 const WINIT_ARG: &'static str = "winit";
 
@@ -63,6 +63,7 @@ fn connect_to_service() -> Result<Hwnd> {
                     .arg(ELEVATED_SERVICE_ARG)
                     .status().unwrap()
             });
+            thread::sleep(Duration::from_secs(2));
             TcpStream::connect_timeout(&SocketAddr::V4(SocketAddrV4::new(ADDRESS, PORT)), SERVICE_STARTUP_WAIT)?
         }
     };
